@@ -1,4 +1,4 @@
-function [ TQ, rhs_TQ ] = build_hc_tr( Tf, Tmod, hc, powdens, therm, geom, MatFree);
+function [ TQ, rhs_TQ ] = build_hc_tr( Tf, Tmod, hc, powdens, therm, geom, MatFree)
 
 [ TQ, rhs_TQ ] = build_hc_ss( Tf, Tmod, hc, powdens, therm, geom );
 

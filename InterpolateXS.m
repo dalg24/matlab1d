@@ -6,10 +6,11 @@ function [ixs]=InterpolateXS(Data, matnum, fuel, mode, T_f, RhoMod, iel, ixs)
 fuel = fuel + 273.15 ;
 
 % safeguards
-fuel=min(fuel, T_f(end));
-fuel=max(fuel, T_f(1)  );
-mode=min(mode, RhoMod(end));
-mode=max(mode, RhoMod(1)  );
+eps=0.1;
+fuel=min(fuel, T_f(end)-eps);
+fuel=max(fuel, T_f(1)+eps  );
+mode=min(mode, RhoMod(end)-eps);
+mode=max(mode, RhoMod(1)+eps  );
 
 [j,k] = GetIndices(fuel, mode, T_f, RhoMod) ;
 

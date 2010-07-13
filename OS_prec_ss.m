@@ -9,12 +9,13 @@ function [x_krylov]=OS_prec_ss(MSH, NPAR, XS, therm, hydro, BC, x_krylov, vec);
 [P,M,ixs] = create_mat_ss( MSH, XS, NPAR, BC, Teff, Rmod);
 
 strid = NPAR.neu;
-x_krylov(1:strid) = M \ x_krylov(1:strid);
+x_krylov(1:strid) = (M-P) \ x_krylov(1:strid);
 
 % % % P contains the cell averaged powers per axial cell and radial channel
 % for block jacobi precond, the Pow is useless b/c the rhs is the input x_krylov!
 [Pow,Plevel(1)] = comp_power( ixs ,MSH, NPAR, x_krylov(1:strid), XS.G );
-[Pow,Plevel(1)] = norma_power( Pow, therm.Watt0, false );
+Pow=Pow*therm.Watt0;
+% [Pow,Plevel(1)] = norma_power( Pow, therm.Watt0, false );
 
 %%%%%%%%% solve ss heat conduction
 [x_krylov(NPAR.neu+1:NPAR.ther)] = solve_ss_hc( MSH, therm, hydro,...

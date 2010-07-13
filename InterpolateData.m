@@ -16,6 +16,7 @@ if (j < tflen && k < rholen)
     out = (1 - t)*(1 - u)*c(k,j) + t*(1 - u)*c(k,j+1) + t*u*c(k+1,j+1) + (1 - t)*u*c(k+1,j) ;
     
 else
+    [fuel, mod]
     error('Out of limits') ;
     
     if(j >= tflen && k >= rholen)

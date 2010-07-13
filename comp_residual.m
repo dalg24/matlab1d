@@ -1,4 +1,4 @@
-function [res,err2] = comp_residual(MSH,XS,NPAR,BC,therm,hydro,vec,src);
+function [res,err2] = comp_residual(MSH,XS,NPAR,BC,therm,hydro,vec);
 
 res = zeros(NPAR.siz,1);
 
@@ -16,11 +16,13 @@ end
 [P,M,ixs] = create_mat_ss( MSH, XS, NPAR, BC, Teff, Rmod );
 
 strid = NPAR.neu;
-res(1:strid) = M * vec(1:strid) - src(1:strid);
+res(1:strid) = (M-P) * vec(1:strid);
 
 % P contains the cell averaged powers per axial cell and radial channel
 [Pow,Plevel(1)] = comp_power( ixs ,MSH, NPAR, vec(1:strid), XS.G );
-[Pow,Plevel(1)] = norma_power( Pow, therm.Watt0, false );
+% useful to give close to the correct amplitude
+Pow=Pow*therm.Watt0;
+% [Pow,Plevel(1)] = norma_power( Pow, therm.Watt0, false );
 
 %%%%%%%%% extract heat flux
 [flxth]=extract_flxth( MSH, hydro, vec(NPAR.neu+1:NPAR.ther), Tmod, vec(NPAR.ther+1:NPAR.siz) );
@@ -37,7 +39,7 @@ res(NPAR.ther+1:NPAR.siz) = res(NPAR.ther+1:NPAR.siz) / NPAR.scaling(3) ;
 
 
 
-% compute the maximum of the ration of residual(i)/solution_vector(i)
+% compute the maximum of the ratio of residual(i)/solution_vector(i)
 if(nargout>1)
 
     % we remove for the list of variables the ones for which solution_vector(i)=0

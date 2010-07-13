@@ -159,11 +159,12 @@ my_TH_plot(fid+1, true, false, MSH, NPAR, therm, hydro, vec );
 
 if(MSH.dim==1)
 %     save save1rjfnk.mat vec keff;
+    save save_os_ss.mat vec keff;
 % else
 %     save save2r.mat vec keff;
 end
 
-% error('eeeee')
+error('eeeee')
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

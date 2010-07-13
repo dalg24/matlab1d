@@ -12,7 +12,8 @@ disp(sprintf('ss eigenvalue is %g',keff));
 
 % Pow contains the cell averaged powers per axial cell and radial channel
 [Pow,Plevel(1)] = comp_power( ixs, MSH, NPAR, vec(1:NPAR.neu), XS.G );
-[Pow,Plevel(1)] = norma_power( Pow, therm.Watt0, true );
+Pow=Pow*therm.Watt0;
+%[Pow,Plevel(1)] = norma_power( Pow, therm.Watt0, true );
 
 % % figure(11)
 % % plot(Pow)

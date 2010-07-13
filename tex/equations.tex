@@ -1,0 +1,249 @@
+\documentclass[11pt]{article}
+% PACKAGES
+\input{utils/packages.tex}
+\usepackage{graphics}
+\usepackage{graphicx}
+\usepackage{color}
+%-----------------------------------------------------------
+% NEW  DEFINITIONS
+\input{utils/def.tex}
+\newcommand{\vj}{\vec{J}}
+\newcommand{\sa}[1]{\sigma_{a #1}}
+\newcommand{\vl}{\vec{\lambda}}
+\newcommand{\vdj}{\delta \vec{J}}
+\newcommand{\dphi}{\delta \Phi}
+\newcommand{\lmax}{\ensuremath{L_{\textit{max}}}\xspace}
+\newcommand{\pmax}{\ensuremath{p_{\textit{max}}}\xspace}
+\newcommand{\sddx}{\frac{d}{dx}}
+\newcommand{\sddt}{\frac{d}{dt}}
+\newcommand{\der}[2]{\frac{\partial #1}{\partial #2}}
+\newcommand{\vF}{\vec{F}}
+\newcommand{\Tf}{\ensuremath{T_{\textit{fuel}}}\xspace}
+\newcommand{\Teff}{\ensuremath{T_{\textit{eff}}}\xspace}
+\newcommand{\ro}{\ensuremath{\rho_{\textit{m}}}\xspace}
+%-----------------------------------------------------------
+\addtolength{\hoffset}{-2.0cm}
+\addtolength{\textwidth}{4cm}
+\addtolength{\textheight}{4.0cm}
+\addtolength{\voffset}{-1.8cm}
+\addtolength{\headsep}{-0.3cm}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{1.8ex plus 0.5ex minus 0.2ex}
+
+\linespread{1.1}
+%-----------------------------------------------------------
+\begin{document}
+%-----------------------------------------------------------
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+{\centering{\huge Three physics model equations}} 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%----------------------
+\section{Neutronics}
+%----------------------
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%----------------------
+\subsection{Model}
+%----------------------
+
+One-dimensional reactor with zero-flux boundary condition at the top and bottom. Cross sections are piece-wise constant as a function of $z$ (height) and they represent homogenized fuel assembly properties.
+
+%----------------------
+\subsection{Old version of the neutronics solver}
+%----------------------
+
+The 1-D 2-g neutron diffusion equation is solved (do I really have to write it down?).\\
+
+In {\bf steady-state}, I used to the neutronics eigenproblem in order to get the initial values
+for a transient run. The multi-physics coupling was performed as followed
+\ben
+\item initialize fuel temperature field \Tf and moderator densities \ro
+\item solve the neutronics eigenproblem 
+\item compute the power and normalize it so that it is equal to the specified value at $t=0$ (initial power value)
+\item pass the power to the TH and solve for \Tf and \ro
+\item if the new values of \Tf and \ro and \keff have converged, exit; otherwise go back to 2
+\een
+Of course, \keff may not be equal to 1 necessary (we are doing a made up test case, so why would $\keff=1$ anyway), so I renormalize the $\nu\Sigma_f$ value for \keff so that the initial configuration is truly critical.
+
+
+Then, in {\bf transient} mode, the time-dependent neutron diffusion equation, supplemented with the precursors ODEs are solved.
+
+The {\bf boundary conditions} are always Dirichlet zero flux at the top and bottom of the 1-D domain.
+
+%----------------------
+\subsection{New version of the neutronics solver}
+%----------------------
+
+Cristian asked to first focus on steady state and to let the power be a free parameter, determined by the nonlinear solve of the initial steady state equations (neutronics+TH). Therefore, one may write the nonlinear residual pertaining to the neutronics as follows:
+\be
+F_N(\phi,\Teff,\ro)=0=A_N(\Teff,\ro)\phi
+\ee
+where $A_N$ is the discretized operator for
+\be
+\div D(\Teff,\ro) \grad \cdot + (\Sigma_a -\nu \Sigma_f) \cdot
+\ee
+I have written the 1-g form but you get the picture and it is easy to write the multigroup form \ldots Basically, $D$ and the $\Sigma$'s depends on \Teff and \ro.\\
+Do note that I have purposefully used \Teff and not \Tf. \Teff is defined as
+\be
+\Teff = \alpha \Tf(0) + (1-\alpha) \Tf(R_f)
+\label{eq:teff}
+\ee
+with $\Tf(0)$ the fuel centerline temperature and $\Tf(R_f)$ the fuel surface temperature ($R_f=$ fuel pellet radius).
+
+%----------------------
+\subsection{Cross-sections}
+%----------------------
+
+They are in tabular form, parameterized as a function of \Teff and \ro. They are taken form the MSLB OECD benchmark (PRESSURISED WATER REACTOR MAIN STEAM LINE BREAK (MSLB) BENCHMARK, NEA/NSC/DOC(99)8). Again, \Teff is computed with the knowledge of the temperature radial distribution in the pin, see \eqt{eq:teff}.
+
+%----------------------
+\subsection{Power}
+%----------------------
+
+With the knowledge of the fission cross sections (and the TH fields to interpolate them) and the multigroup fluxes, the neutronic power is computed. In the old version of the solver, this power was renormalized so that the power integrated over the domain would yield a specified value (in Watts) at the initial steady state (during transient, the power would naturally evolve from this value).\\
+In the new solver, the power is not renormalized and an initial steady state equilibrium is reached (feedback is negative, remember!). However, to help int he numerics, there is still a multiplicative constant (a scaling factor if you prefer)
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%----------------------
+\section{Pin heat transfer}
+%----------------------
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%----------------------
+\subsection{Model}
+%----------------------
+
+A single (average) pin is considered. Axial heat conduction is neglected. Only radial heat transfers are accounted for. For a given axial node of the neutronic domain, we compute a radial temperature distribution in the pin element.
+ 
+%----------------------
+\subsection{Equations}
+%----------------------
+Here again, nothing fancy \ldots
+
+\be
+\rho_f C_{p,f} \frac{\partial T}{\partial t} -\div k_f(T) \grad T = q'''
+\ee
+(remove time derivative for steady state) where the volumetric heat density $q'''$ is determined by the neutronic power in the axial node under consideration. There is obviously a conversion factor to go from Watts in the axial node to Watt/cm$^3$ for $q'''$.\\
+
+Boundary conditions:
+\ben
+\item at $r=0$, symmetry $\frac{\partial T}{\partial r} = 0$
+\item at the clad outer radius ($r=R_c$), the heat flux $\varphi = -k \partial _n T = h_{conv}\Big(T_m-T(R_c)\Big)$
+\een
+$T_m$ is the moderator bulk temperature at that axial node. $h_{conv}$ is the heat transfer coefficient. For single-phase forced convection, I use the Dittus-Boelter correlation (which requires the Nusselt number of the fluid, which require a lot of fluid properties; they are all coded but I will not type then in this short note).
+
+\bigskip
+
+The above heat conduction equation is valid in the fuel and the clad. At the fuel-clad interface, a simple relation relates the heat flux leaving the last fuel ring and the first clad ring:
+\be
+\varphi = h_{gap} \Big (\Tf(R_f) - T_{clad}(R_f) \Big)
+\ee
+where $h_{gap}$ is the so-called gap conductance.
+
+\bigskip
+
+The nonlinear residual for the discretized temperature equation can be put as
+\be
+F_T(\phi,T,T_m)=0=A_T(T,T_m)T-S(\phi)
+\ee
+For the neutronic residual, I used $\ro$ and not $T_m$ in the residual expression 
+but that's OK. The pressure in the core is assumed to be fixed (155 bars) and, with the single phase assumption, there is a one-to-one relation between the fluid density, temperature, enthalpy, \ldots
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%----------------------
+\section{Fluid model}
+%----------------------
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%----------------------
+\subsection{Model}
+%----------------------
+
+The same axial 1-D nodalization as for neutronics is employed. The inlet enthalpy ($H^{in}$) is known and the pressure is fixed and constant throughout the domain. Since we are using an average pin, we are also using an average channel for that pin and we compute a representative hydraulic area, $S_{hy}$, for that pin.
+
+%----------------------
+\subsection{Enthalpy balance}
+%----------------------
+We do a simple enthalpy balance:
+\be
+\overset{\cdot}{m} \Delta H = \Delta z 2 \pi R_c \varphi
+\ee
+where $\overset{\cdot}{m}=\rho v S_{hy}$ is the mass flow rate. In steady state, one can actually show that 
+$\Delta z 2\pi R_c \varphi$ is exactly the power deposited in the pin for the axial node under consideration but the expression given is more general and works for transients(provided that you add the appropriate time derivative term in the enthalpy balance equation).
+
+\bigskip
+
+
+The nonlinear residual for the discretized temperature equation can be put as
+\be
+F_H(H,T)=0=A_H(H,T)T-S(T_c)
+\ee
+where, again, I use indifferently $H$, \ro, or $T_m$ for the fluid unknown.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%----------------------
+\section{Solver}
+%----------------------
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+Putting all the nonlinear residual together, we have 
+\be
+F(X)=0
+\ee
+where
+\be
+X=[\phi, T, T_m]^T
+\ee
+(with the freedom to swap $T_m$ for any other fluid unknown due to a one-to-one relationship)
+and
+\be
+F(X)=
+\begin{bmatrix}
+F_N \\
+F_T\\
+F_H
+\end{bmatrix}
+\ee
+
+This is solved using Newton's method. The Jacobian needed for this solve is obtain using finite differences
+\be
+J_{i,j}= \frac{ F_j(X+\epsilon \delta_{i,j})-F_j(X)}{\epsilon}
+\ee
+
+As an example, the numerical Jacobian is plotted in Fig.~1.
+\begin{figure}[htb]
+\label{fig:J}
+\begin{center}
+\includegraphics[scale=1.0]{J.eps}
+\caption{num jac}
+\end{center}
+\end{figure} 
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%------------------------------------------------------
+\end{document}
